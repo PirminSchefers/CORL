@@ -1,18 +1,24 @@
-import os
-import random
-import uuid
-from dataclasses import asdict, dataclass
+import os               # Operating System, possibility to interact with the os
+                        # nt --> Windows, posix --> Mac
+import random           # Generates pseudo-random numbers
+import uuid             # Universally Unique Identifier
+from dataclasses import asdict, dataclass                   # https://delftstack.com/howto/python/python-dataclass-to-dict/
+                                                            # https://docs.python.org/3/library/dataclasses.html
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-import d4rl
-import gym
-import numpy as np
-import pyrallis
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import wandb
+import d4rl             # https://github.com/Farama-Foundation/D4RL
+import gym              # https://www.gymlibrary.dev/
+import numpy as np      # Numerical Python; https://numpy.org/doc/stable/user/absolute_beginners.html
+import pyrallis         # https://github.com/eladrich/pyrallis
+import torch            # https://github.com/pytorch/pytorch
+                        # Tensor computation and deep neural networks
+import torch.nn as nn   # https://pytorch.org/tutorials/beginner/nn_tutorial.html
+                        # nn --> Neural networks
+import torch.nn.functional as F     # Convolution functions
+                                    # convolution = Faltung
+import wandb            # https://github.com/wandb/wandb
+                        # Weights & Biases
 
 TensorBatch = List[torch.Tensor]
 
@@ -21,20 +27,20 @@ TensorBatch = List[torch.Tensor]
 class TrainConfig:
     # Experiment
     device: str = "cuda"
-    env: str = "halfcheetah-medium-expert-v2"  # OpenAI gym environment name
-    seed: int = 0  # Sets Gym, PyTorch and Numpy seeds
-    eval_freq: int = int(5e3)  # How often (time steps) we evaluate
-    n_episodes: int = 10  # How many episodes run during evaluation
-    max_timesteps: int = int(1e6)  # Max time steps to run environment
-    checkpoints_path: Optional[str] = None  # Save path
-    load_model: str = ""  # Model load file name, "" doesn't load
-    batch_size: int = 256  # Batch size for all networks
-    discount: float = 0.99  # Discount factor
+    env: str = "halfcheetah-medium-expert-v2"   # OpenAI gym environment name
+    seed: int = 0                               # Sets Gym, PyTorch and Numpy seeds
+    eval_freq: int = int(5e3)                   # How often (time steps) we evaluate
+    n_episodes: int = 10                        # How many episodes run during evaluation
+    max_timesteps: int = int(1e6)               # Max time steps to run environment
+    checkpoints_path: Optional[str] = None      # Save path
+    load_model: str = ""                        # Model load file name, "" doesn't load
+    batch_size: int = 256                       # Batch size for all networks
+    discount: float = 0.99                      # Discount factor
     # BC
-    buffer_size: int = 2_000_000  # Replay buffer size
-    frac: float = 0.1  # Best data fraction to use
-    max_traj_len: int = 1000  # Max trajectory length
-    normalize: bool = True  # Normalize states
+    buffer_size: int = 2_000_000                # Replay buffer size
+    frac: float = 0.1                           # Best data fraction to use
+    max_traj_len: int = 1000                    # Max trajectory length
+    normalize: bool = True                      # Normalize states
     # Wandb logging
     project: str = "CORL"
     group: str = "BC-D4RL"
@@ -45,7 +51,9 @@ class TrainConfig:
         if self.checkpoints_path is not None:
             self.checkpoints_path = os.path.join(self.checkpoints_path, self.name)
 
-
+# Function definitions
+# :  Function annotations (optional metadata information about types)
+# -> Return annotations
 def soft_update(target: nn.Module, source: nn.Module, tau: float):
     for target_param, source_param in zip(target.parameters(), source.parameters()):
         target_param.data.copy_((1 - tau) * target_param.data + tau * source_param.data)
@@ -55,7 +63,6 @@ def compute_mean_std(states: np.ndarray, eps: float) -> Tuple[np.ndarray, np.nda
     mean = states.mean(0)
     std = states.std(0) + eps
     return mean, std
-
 
 def normalize_states(states: np.ndarray, mean: np.ndarray, std: np.ndarray):
     return (states - mean) / std
@@ -82,7 +89,7 @@ def wrap_env(
         env = gym.wrappers.TransformReward(env, scale_reward)
     return env
 
-
+# Class definitions
 class ReplayBuffer:
     def __init__(
         self,
@@ -111,6 +118,12 @@ class ReplayBuffer:
     def _to_tensor(self, data: np.ndarray) -> torch.Tensor:
         return torch.tensor(data, dtype=torch.float32, device=self._device)
 
+# : is the delimiter of the slice syntax to 'slice out' sub-parts in sequences, [start:end]
+    
+# A formatted string literal or f-string is a string literal that is prefixed with f or F. 
+# These strings may contain replacement fields, which are expressions delimited by curly braces {}. 
+# While other string literals always have a constant value, formatted strings are really expressions evaluated at run time.
+    
     # Loads data in d4rl format, i.e. from Dict[str, np.array].
     def load_d4rl_dataset(self, data: Dict[str, np.ndarray]):
         if self._size != 0:
@@ -168,7 +181,7 @@ def wandb_init(config: dict) -> None:
     )
     wandb.run.save()
 
-
+# https://pytorch.org/tutorials/beginner/blitz/autograd_tutorial.html#gradients
 @torch.no_grad()
 def eval_actor(
     env: gym.Env, actor: nn.Module, device: str, n_episodes: int, seed: int
